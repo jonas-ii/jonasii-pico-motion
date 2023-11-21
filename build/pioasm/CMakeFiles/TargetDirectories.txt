@@ -1,0 +1,3 @@
+/Users/jonaslendzionschultzii/pico/jonasii-pico-motion-v1/build/pioasm/CMakeFiles/pioasm.dir
+/Users/jonaslendzionschultzii/pico/jonasii-pico-motion-v1/build/pioasm/CMakeFiles/edit_cache.dir
+/Users/jonaslendzionschultzii/pico/jonasii-pico-motion-v1/build/pioasm/CMakeFiles/rebuild_cache.dir

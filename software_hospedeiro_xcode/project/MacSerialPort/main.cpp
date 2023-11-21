@@ -89,27 +89,6 @@ int main(int argc, const char * argv[]) {
         }
         
     }
-/*
-    for (int i = 1; i <= 12; i++){
-//    while (true){
-        if (i==1){ //to give time to receive a data in the serial, otherwise the first data of strVec will be 0
-            sleep(5);
-        }
-        readSerialData(databuffer, 76); //76 is the exact size of the message
-        cout << "The event read is: " << databuffer << endl;
-        strVec.push_back(databuffer);
-        flushSerialData();
-        // * Read using readSerialData(char* bytes, size_t length)
-        sleep(5);
-        
-        // * Remember to flush potentially buffered data when necessary
-    
-    }
-
-    for(int i = 0; i < strVec.size(); i++) {
-        cout << "O envento " << i << " eh: " ;
-        cout << strVec[i] << endl;
-    }*/
 
     return 0;
 }

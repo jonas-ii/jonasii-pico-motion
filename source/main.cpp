@@ -13,7 +13,6 @@ static bool debug_nn = false; // Set this to true to see e.g. features generated
 const uint8_t ADDRESS = 0x1C; //in MMA845X it's C, not D
 
 //hardware registers
-
 const uint8_t REG_X_MSB = 0x01;
 const uint8_t REG_X_LSB = 0x02;
 const uint8_t REG_Y_MSB = 0x03;
@@ -29,7 +28,7 @@ const float count = 2048; // 4096 for ±2g, 2048 for ±4g, 1024 for ±8g
 
 uint8_t buf[2];
 
-float mma8451_convert_accel(uint16_t raw_accel) {
+float mma845X_convert_accel(uint16_t raw_accel) {
     float acceleration;
     // Acceleration is read as a multiple of g (gravitational acceleration on the Earth's surface)
     // Check if acceleration < 0 and convert to decimal accordingly
@@ -44,12 +43,13 @@ float mma8451_convert_accel(uint16_t raw_accel) {
 }
 
 #ifdef i2c_default
-void mma8451_set_state(uint8_t state) {
+void mma845X_set_state(uint8_t state) {
     buf[0] = REG_CTRL_REG1;
     buf[1] = state; // Set RST bit to 1
     i2c_write_blocking(i2c_default, ADDRESS, buf, 2, false);
 }
 #endif
+
 
 int main() {
     stdio_init_all();
@@ -61,9 +61,9 @@ int main() {
     // Start on Tuesday 11th of July 2023 15:45:00
         datetime_t t = {
                 .year  = 2023,
-                .month = 07,
-                .day   = 11,
-                .dotw  = 5, // 0 is Sunday, so 5 is Friday
+                .month = 11,
+                .day   = 15,
+                .dotw  = 3, // 0 is Sunday, so 5 is Friday
                 .hour  = 15,
                 .min   = 45,
                 .sec   = 00
@@ -92,7 +92,7 @@ int main() {
     float z_acceleration;
 
     // Enable standby mode
-    mma8451_set_state(0x00);
+    mma845X_set_state(0x00);
 
     // Edit configuration while in standby mode
     buf[0] = REG_DATA_CFG;
@@ -100,8 +100,11 @@ int main() {
     i2c_write_blocking(i2c_default, ADDRESS, buf, 2, false);
 
     // Enable active mode
-    mma8451_set_state(0x01);
+    mma845X_set_state(0x01);
 
+    //Set the event id
+    int id = 0;
+    
     while (true) {
     
         float pred_value = 0;
@@ -121,19 +124,19 @@ int main() {
             //for x acceleration
             i2c_write_blocking(i2c_default, ADDRESS, &REG_X_MSB, 1, true);
             i2c_read_blocking(i2c_default, ADDRESS, buf, 2, false);
-            buffer[ix] = mma8451_convert_accel(buf[0] << 6 | buf[1] >> 2);
+            buffer[ix] = mma845X_convert_accel(buf[0] << 6 | buf[1] >> 2);
             x_acceleration = buffer[ix];
             
             //for y acceleration
             i2c_write_blocking(i2c_default, ADDRESS, &REG_Y_MSB, 1, true);
             i2c_read_blocking(i2c_default, ADDRESS, buf, 2, false);
-            buffer[ix + 1] = mma8451_convert_accel(buf[0] << 6 | buf[1] >> 2);
+            buffer[ix + 1] = mma845X_convert_accel(buf[0] << 6 | buf[1] >> 2);
             y_acceleration = buffer[ix + 1];
             
             //for z acceleration
             i2c_write_blocking(i2c_default, ADDRESS, &REG_Z_MSB, 1, true);
             i2c_read_blocking(i2c_default, ADDRESS, buf, 2, false);
-            buffer[ix + 2] = mma8451_convert_accel(buf[0] << 6 | buf[1] >> 2);
+            buffer[ix + 2] = mma845X_convert_accel(buf[0] << 6 | buf[1] >> 2);
             z_acceleration = buffer[ix + 2];
             
             sleep_us(next_tick - ei_read_timer_us());
@@ -161,12 +164,11 @@ int main() {
         datetime_to_str(datetime_str, sizeof(datetime_buf), &t);
         
         // print the predictions
-        /*
-        ei_printf("Predictions: ");
-        ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
-                  result.timing.dsp, result.timing.classification, result.timing.anomaly);
-        ei_printf(": \n");
-        */
+        //ei_printf("Predictions: ");
+        //ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
+        //          result.timing.dsp, result.timing.classification, result.timing.anomaly);
+        //ei_printf(": \n");
+        
         for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
             //ei_printf("    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
             if (result.classification[ix].value > pred_value) {
@@ -176,15 +178,17 @@ int main() {
         }
         
         //ei_printf(" \n");
-        //ei_printf("***********************************************************\n");
-        ei_printf(" The movement is    %s: %.5f  at time: \r%s \n",  result.classification[jx].label, result.classification[jx].value, datetime_str);
-        //ei_printf("***********************************************************\n");
+        //ei_printf("************************************************************************************\n");
+        absolute_time_t was = get_absolute_time();
+        uint64_t us = to_us_since_boot(was); // / 1000000
+        //ei_printf("Overhead for get_absolute_time() = %llu us\n", us);
+        ei_printf(" Event ID: %d -> The movement is %s: %.5f  at time: \r%s and absolute time (us) is: %llu \n", id,  result.classification[jx].label, result.classification[jx].value, datetime_str, us);
+        //ei_printf("************************************************************************************\n");
  //       pred = 0;
-         
-        //ei_printf("%.5f\n", result.classification[jx].value);
+        id ++;
         
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
-        ei_printf("    anomaly score: %.3f\n", result.anomaly);
+        //ei_printf("    anomaly score: %.3f\n", result.anomaly);
 #endif
         
 #if !defined(EI_CLASSIFIER_SENSOR) || EI_CLASSIFIER_SENSOR != EI_CLASSIFIER_SENSOR_ACCELEROMETER

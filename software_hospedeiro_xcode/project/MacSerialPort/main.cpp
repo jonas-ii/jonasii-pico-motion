@@ -60,7 +60,7 @@ string returnActiveTime(string s)
 
 int main(int argc, const char * argv[]) {
     //* Open port, and connect to a device
-    const char devicePathStr[] = "/dev/tty.usbmodem11401";
+    const char devicePathStr[] = "/dev/tty.usbmodem1301";
     const int baudRate = 9600;
     char databuffer[1024];
     char databufferTime[1];
@@ -99,7 +99,7 @@ int main(int argc, const char * argv[]) {
                 cout << endl;
                 cout << endl;
                 //readSerialData(databuffer, 140); //196 is the exact size of one message
-                readSerialData(databuffer, 98);
+                readSerialData(databuffer, 96);
                 cout << "The event is: " << databuffer << endl;
                 eventVec.push_back(databuffer);
                 flushSerialData(); //clear the serial data after passing it to the host buffer
@@ -129,7 +129,7 @@ int main(int argc, const char * argv[]) {
                 sleep(4.5);
                 cout << endl;
                 cout << endl;
-                readSerialData(databufferTime, 140);
+                readSerialData(databufferTime, 141);
                 absoluteTimeVec.push_back(databufferTime);
                 activeTime = returnActiveTime(absoluteTimeVec[0]); //reversing the string to print only the 'last' character -- it's the active time
                 cout << "The active time of Pico is: " << activeTime << " (us) " << endl;

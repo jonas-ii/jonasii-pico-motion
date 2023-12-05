@@ -28,6 +28,16 @@ const float count = 2048; // 4096 for ±2g, 2048 for ±4g, 1024 for ±8g
 
 uint8_t buf[2];
 
+#define UART_ID uart1
+#define BAUD_RATE 115200
+#define DATA_BITS 8
+#define STOP_BITS 1
+#define PARITY    UART_PARITY_NONE
+
+// Using pins 8 and 9
+#define UART_TX_PIN 8
+#define UART_RX_PIN 9
+
 float mma845X_convert_accel(uint16_t raw_accel) {
     float acceleration;
     // Acceleration is read as a multiple of g (gravitational acceleration on the Earth's surface)
@@ -53,6 +63,28 @@ void mma845X_set_state(uint8_t state) {
 
 int main() {
     stdio_init_all();
+    
+    // Set up our UART with a basic baud rate.
+    uart_init(UART_ID, 2400);
+
+    // Set the TX and RX pins by using the function select on the GPIO
+    // Set datasheet for more information on function select
+    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+
+    // Actually, we want a different speed
+    // The call will return the actual baud rate selected, which will be as close as
+    // possible to that requested
+    int actual = uart_set_baudrate(UART_ID, BAUD_RATE);
+
+    // Set UART flow control CTS/RTS, we don't want these, so turn them off
+    uart_set_hw_flow(UART_ID, false, false);
+
+    // Set our data format
+    uart_set_format(UART_ID, DATA_BITS, STOP_BITS, PARITY);
+
+    // Turn off FIFO's - we want to do this character by character
+    uart_set_fifo_enabled(UART_ID, false);
     
     //For time in pico
     char datetime_buf[256];
@@ -176,6 +208,42 @@ int main() {
                 jx = ix;
             }
         }
+        
+        int len1 = snprintf(NULL, 0, "%f", result.classification[jx].value);
+        int len2 = snprintf(NULL, 0, "%d", id);
+        char *value_char = (char *)malloc(len1 + 1);
+        char *id_char = (char *)malloc(len2 + 1);
+        snprintf(value_char, len1 + 1, "%f", result.classification[jx].value);
+        snprintf(id_char, len2 + 1, "%d", id);
+        //char *value_char;
+
+        if (result.classification[jx].label=="circle"){
+            if (uart_is_writable(UART_ID)) {
+                uart_puts(UART_ID, "ID: ");
+                uart_puts(UART_ID, id_char);
+                uart_puts(UART_ID, " -- > Circle with probability of: ");
+                uart_puts(UART_ID, value_char);
+            }
+        } else if (result.classification[jx].label=="left_right") {
+            uart_puts(UART_ID, "ID: ");
+            uart_puts(UART_ID, id_char);
+            uart_puts(UART_ID, " -- > Left-right with probability of: ");
+            uart_puts(UART_ID, value_char);
+        } else if (result.classification[jx].label=="resting") {
+            uart_puts(UART_ID, "ID: ");
+            uart_puts(UART_ID, id_char);
+            uart_puts(UART_ID, " -- > Resting with probability of: ");
+            uart_puts(UART_ID, value_char);
+        }
+        else {
+            uart_puts(UART_ID, "ID: ");
+            uart_puts(UART_ID, id_char);
+            uart_puts(UART_ID, " -- > Up_down with probability of: ");
+            uart_puts(UART_ID, value_char);
+        }
+        
+        free(value_char);
+        free(id_char);
         
         //ei_printf(" \n");
         //ei_printf("************************************************************************************\n");
